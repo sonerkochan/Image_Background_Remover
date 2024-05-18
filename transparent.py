@@ -42,12 +42,14 @@ def get_color_at_click(event):
     x = event.x
     y = event.y
     img = processed_image.copy()
-    img.thumbnail((250, 250)) 
+    img.thumbnail((250, 250))  
     color = img.getpixel((x, y))
     selected_color.set('#%02x%02x%02x' % color[:3])
     color_display.config(bg=selected_color.get())
     global color_to_make_transparent
     color_to_make_transparent = color[:3]
+    global tolerance
+    tolerance = 0  
 
 def process_image():
     if not image_path.get() or not selected_color.get():
