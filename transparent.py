@@ -59,15 +59,11 @@ def process_image():
     color_rgb = tuple(int(selected_color.get()[i:i+2], 16) for i in (1, 3, 5))
     processed_image = make_color_transparent(processed_image, color_rgb, tolerance)
     
-    output_path = os.path.join(os.path.dirname(image_path.get()), "transparent_image.png")
-    processed_image.save(output_path)
     
     processed_image.thumbnail((250, 250))
     processed_img = ImageTk.PhotoImage(processed_image)
     image_label.configure(image=processed_img)
     image_label.image = processed_img
-    
-    output_path_var.set(output_path)
     
     undo_stack.append(processed_image.copy())
 
