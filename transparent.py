@@ -1,12 +1,10 @@
 import tkinter as tk
 from tkinter import filedialog
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageChops
 import os
 
-def make_color_transparent(image_path, color_to_make_transparent, tolerance):
-
-    image = Image.open(image_path)
-
+def make_color_transparent(image, color_to_make_transparent, tolerance):
+    
     image = image.convert("RGBA")
 
     data = image.getdata()
@@ -35,12 +33,16 @@ def select_file():
         image_label.bind("<Button-1>", get_color_at_click)
         global original_image
         original_image = Image.open(file_path)
+        global processed_image
+        processed_image = original_image.copy()
+        global undo_stack
+        undo_stack = [original_image.copy()] 
 
 def get_color_at_click(event):
     x = event.x
     y = event.y
-    img = original_image.copy()
-    img.thumbnail((250, 250))
+    img = processed_image.copy()
+    img.thumbnail((250, 250)) 
     color = img.getpixel((x, y))
     selected_color.set('#%02x%02x%02x' % color[:3])
     color_display.config(bg=selected_color.get())
@@ -52,28 +54,46 @@ def process_image():
         return
     
     global tolerance
-    tolerance += 10  # Each time I click process file the tolerance is increased and removes more.
+    global processed_image
+    tolerance += 10 # Tolerance
     color_rgb = tuple(int(selected_color.get()[i:i+2], 16) for i in (1, 3, 5))
-    processed_image = make_color_transparent(image_path.get(), color_rgb, tolerance)
+    processed_image = make_color_transparent(processed_image, color_rgb, tolerance)
     
     output_path = os.path.join(os.path.dirname(image_path.get()), "transparent_image.png")
     processed_image.save(output_path)
     
     processed_image.thumbnail((250, 250))
     processed_img = ImageTk.PhotoImage(processed_image)
-    output_image_label.configure(image=processed_img)
-    output_image_label.image = processed_img
+    image_label.configure(image=processed_img)
+    image_label.image = processed_img
     
     output_path_var.set(output_path)
+    
+    undo_stack.append(processed_image.copy())
 
-def save_file():
-    if not output_path_var.get():
+def undo():
+    if len(undo_stack) > 1:
+
+        current_image = undo_stack.pop()
+        previous_image = undo_stack[-1]
+        
+        original_width, original_height = original_image.size
+        previous_image_resized = previous_image.resize((original_width, original_height))
+        
+        processed_image = previous_image_resized.copy()
+        
+        processed_image.thumbnail((250, 250))
+        processed_img = ImageTk.PhotoImage(processed_image)
+        image_label.configure(image=processed_img)
+        image_label.image = processed_img
+
+def save_current_image():
+    if not processed_image:
         return
-
+    
     file_path = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG Files", "*.png")])
     if file_path:
-        img = Image.open(output_path_var.get())
-        img.save(file_path)
+        processed_image.save(file_path)
 
 # GUI
 root = tk.Tk()
@@ -85,6 +105,8 @@ selected_color = tk.StringVar()
 color_to_make_transparent = None
 tolerance = 0
 original_image = None
+processed_image = None
+undo_stack = []
 
 # Input
 input_frame = tk.Frame(root)
@@ -102,14 +124,10 @@ color_display.pack(side=tk.LEFT, padx=5)
 image_label = tk.Label(root)
 image_label.pack(pady=10)
 
-# Output
-output_frame = tk.Frame(root)
-output_frame.pack(pady=10)
+undo_button = tk.Button(root, text="Undo", command=undo)
+undo_button.pack(pady=5)
 
-output_image_label = tk.Label(root)
-output_image_label.pack(pady=10)
-
-save_button = tk.Button(output_frame, text="Save Processed Image", command=save_file)
-save_button.pack(side=tk.LEFT, padx=5)
+save_button = tk.Button(root, text="Save Image", command=save_current_image)
+save_button.pack(pady=5)
 
 root.mainloop()
